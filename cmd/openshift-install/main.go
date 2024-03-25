@@ -48,6 +48,7 @@ func installerMain() {
 		newCompletionCmd(),
 		newExplainCmd(),
 		newAgentCmd(),
+		newImageBasedInstallCmd(),
 	} {
 		rootCmd.AddCommand(subCmd)
 	}
