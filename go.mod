@@ -59,6 +59,7 @@ require (
 	github.com/microsoftgraph/msgraph-sdk-go v0.47.0
 	github.com/nutanix-cloud-native/prism-go-client v0.2.1-0.20220804130801-c8a253627c64
 	github.com/onsi/gomega v1.31.1
+	github.com/openshift-kni/lifecycle-agent v0.0.0-20240322205708-3cb3c1755eef
 	github.com/openshift/api v0.0.0-20240301093301-ce10821dc999
 	github.com/openshift/assisted-image-service v0.0.0-20231130154654-56d03d1503e2
 	github.com/openshift/assisted-service/api v0.0.0
@@ -103,7 +104,7 @@ require (
 	k8s.io/api v0.29.1
 	k8s.io/apiextensions-apiserver v0.29.1
 	k8s.io/apimachinery v0.29.1
-	k8s.io/client-go v0.29.1
+	k8s.io/client-go v12.0.0+incompatible
 	k8s.io/cloud-provider-vsphere v0.0.0
 	k8s.io/klog v1.0.0
 	k8s.io/klog/v2 v2.120.1
@@ -234,6 +235,7 @@ require (
 	github.com/openshift/custom-resource-status v1.1.2 // indirect
 	github.com/openshift/machine-api-operator v0.2.1-0.20230929171041-2cc7fcf262f3 // indirect
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
+	github.com/otiai10/copy v1.14.0 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/pierrec/lz4/v4 v4.1.17 // indirect
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8 // indirect
@@ -242,6 +244,7 @@ require (
 	github.com/prometheus/client_model v0.5.0 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
+	github.com/samber/lo v1.39.0 // indirect
 	github.com/shurcooL/httpfs v0.0.0-20190707220628-8d4bc4ba7749 // indirect
 	github.com/spf13/pflag v1.0.6-0.20210604193023-d5e0c0615ace // indirect
 	github.com/xlab/treeprint v1.2.0 // indirect
@@ -256,6 +259,7 @@ require (
 	go.opentelemetry.io/otel/sdk v1.22.0 // indirect
 	go.opentelemetry.io/otel/trace v1.23.0 // indirect
 	go.starlark.net v0.0.0-20230525235612-a134d8f9ddca // indirect
+	go.uber.org/mock v0.4.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.26.0 // indirect
 	golang.org/x/exp v0.0.0-20240119083558-1b970713d09a // indirect
@@ -344,3 +348,5 @@ replace go.mongodb.org/mongo-driver => go.mongodb.org/mongo-driver v1.11.2
 replace golang.org/x/oauth2 => golang.org/x/oauth2 v0.15.0
 
 replace google.golang.org/api => google.golang.org/api v0.157.0
+
+replace k8s.io/client-go => k8s.io/client-go v0.29.1

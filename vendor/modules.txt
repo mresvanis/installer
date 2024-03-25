@@ -8819,6 +8819,17 @@ github.com/opencontainers/go-digest
 ## explicit; go 1.17
 github.com/opencontainers/image-spec/specs-go
 github.com/opencontainers/image-spec/specs-go/v1
+# github.com/openshift-kni/lifecycle-agent v0.0.0-20240322205708-3cb3c1755eef
+## explicit; go 1.20
+github.com/openshift-kni/lifecycle-agent/api/seedreconfig
+github.com/openshift-kni/lifecycle-agent/api/v1alpha1
+github.com/openshift-kni/lifecycle-agent/controllers/utils
+github.com/openshift-kni/lifecycle-agent/ib-cli/installationiso
+github.com/openshift-kni/lifecycle-agent/internal/common
+github.com/openshift-kni/lifecycle-agent/internal/recert
+github.com/openshift-kni/lifecycle-agent/lca-cli/ops
+github.com/openshift-kni/lifecycle-agent/lca-cli/seedclusterinfo
+github.com/openshift-kni/lifecycle-agent/utils
 # github.com/openshift/api v0.0.0-20240301093301-ce10821dc999
 ## explicit; go 1.21
 github.com/openshift/api/annotations
@@ -8940,6 +8951,9 @@ github.com/openshift/machine-api-provider-ibmcloud/pkg/apis/ibmcloudprovider/v1
 github.com/opentracing/opentracing-go
 github.com/opentracing/opentracing-go/ext
 github.com/opentracing/opentracing-go/log
+# github.com/otiai10/copy v1.14.0
+## explicit; go 1.18
+github.com/otiai10/copy
 # github.com/ovirt/go-ovirt v0.0.0-20210809163552-d4276e35d3db
 ## explicit; go 1.15
 github.com/ovirt/go-ovirt
@@ -9016,6 +9030,9 @@ github.com/rogpeppe/go-internal/txtar
 # github.com/russross/blackfriday/v2 v2.1.0
 ## explicit
 github.com/russross/blackfriday/v2
+# github.com/samber/lo v1.39.0
+## explicit; go 1.18
+github.com/samber/lo
 # github.com/shurcooL/httpfs v0.0.0-20190707220628-8d4bc4ba7749
 ## explicit
 github.com/shurcooL/httpfs/vfsutil
@@ -9182,6 +9199,9 @@ go.starlark.net/resolve
 go.starlark.net/starlark
 go.starlark.net/starlarkstruct
 go.starlark.net/syntax
+# go.uber.org/mock v0.4.0
+## explicit; go 1.20
+go.uber.org/mock/gomock
 # go.uber.org/multierr v1.11.0
 ## explicit; go 1.19
 go.uber.org/multierr
@@ -9650,7 +9670,7 @@ k8s.io/cli-runtime/pkg/genericclioptions
 k8s.io/cli-runtime/pkg/genericiooptions
 k8s.io/cli-runtime/pkg/printers
 k8s.io/cli-runtime/pkg/resource
-# k8s.io/client-go v0.29.1
+# k8s.io/client-go v12.0.0+incompatible => k8s.io/client-go v0.29.1
 ## explicit; go 1.21
 k8s.io/client-go/applyconfigurations/admissionregistration/v1
 k8s.io/client-go/applyconfigurations/admissionregistration/v1alpha1
@@ -10105,3 +10125,4 @@ sigs.k8s.io/yaml/goyaml.v3
 # go.mongodb.org/mongo-driver => go.mongodb.org/mongo-driver v1.11.2
 # golang.org/x/oauth2 => golang.org/x/oauth2 v0.15.0
 # google.golang.org/api => google.golang.org/api v0.157.0
+# k8s.io/client-go => k8s.io/client-go v0.29.1
