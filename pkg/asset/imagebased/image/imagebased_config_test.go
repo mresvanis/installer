@@ -255,6 +255,82 @@ imageDigestSources:
 			expectedFound: false,
 			expectedError: "invalid Image-based Installation ISO Config: imageDigestSources[0].mirrors[0]: Invalid value: \"Registry.lab.redhat.com:5000\": failed to parse: invalid reference format: repository name must be lowercase",
 		},
+		{
+			name: "invalid-proxy-schemes",
+			data: `
+apiVersion: v1beta1
+metadata:
+  name: imagebased-installation-config
+pullSecret: "{\"auths\":{\"example.com\":{\"auth\":\"c3VwZXItc2VjcmV0Cg==\"}}}"
+seedVersion: 4.16.0
+seedImage: quay.io/openshift-kni/seed-image:4.16.0
+installationDisk: /dev/vda
+proxy:
+  httpProxy: ""
+  httpsProxy: ""
+  noProxy: ""
+`,
+
+			expectedFound: false,
+			expectedError: "invalid Image-based Installation ISO Config: proxy: Required value: must include httpProxy or httpsProxy",
+		},
+		{
+			name: "invalid-proxy-http-uri",
+			data: `
+apiVersion: v1beta1
+metadata:
+  name: imagebased-installation-config
+pullSecret: "{\"auths\":{\"example.com\":{\"auth\":\"c3VwZXItc2VjcmV0Cg==\"}}}"
+seedVersion: 4.16.0
+seedImage: quay.io/openshift-kni/seed-image:4.16.0
+installationDisk: /dev/vda
+proxy:
+  httpProxy: "invalidscheme://"
+  httpsProxy: ""
+  noProxy: ""
+`,
+
+			expectedFound: false,
+			expectedError: "invalid Image-based Installation ISO Config: proxy.httpProxy: Unsupported value: \"invalidscheme\": supported values: \"http\"",
+		},
+		{
+			name: "invalid-proxy-https-uri",
+			data: `
+apiVersion: v1beta1
+metadata:
+  name: imagebased-installation-config
+pullSecret: "{\"auths\":{\"example.com\":{\"auth\":\"c3VwZXItc2VjcmV0Cg==\"}}}"
+seedVersion: 4.16.0
+seedImage: quay.io/openshift-kni/seed-image:4.16.0
+installationDisk: /dev/vda
+proxy:
+  httpProxy: ""
+  httpsProxy: "invalidscheme://"
+  noProxy: ""
+`,
+
+			expectedFound: false,
+			expectedError: "invalid Image-based Installation ISO Config: proxy.httpsProxy: Unsupported value: \"invalidscheme\": supported values: \"http\", \"https\"",
+		},
+		{
+			name: "invalid-proxy-noproxy",
+			data: `
+apiVersion: v1beta1
+metadata:
+  name: imagebased-installation-config
+pullSecret: "{\"auths\":{\"example.com\":{\"auth\":\"c3VwZXItc2VjcmV0Cg==\"}}}"
+seedVersion: 4.16.0
+seedImage: quay.io/openshift-kni/seed-image:4.16.0
+installationDisk: /dev/vda
+proxy:
+  httpProxy: "http://"
+  httpsProxy: "https://"
+  noProxy: "cluster.local, localhost"
+`,
+
+			expectedFound: false,
+			expectedError: "invalid Image-based Installation ISO Config: proxy.noProxy: Invalid value: \"cluster.local, localhost\": noProxy must not have spaces",
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

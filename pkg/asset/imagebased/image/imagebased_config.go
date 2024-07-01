@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 
 	dockerref "github.com/containers/image/v5/docker/reference"
 	"github.com/pkg/errors"
@@ -161,6 +163,9 @@ func (i *ImageBasedInstallationConfig) validate() field.ErrorList {
 		allErrs = append(allErrs, err...)
 	}
 	if err := i.validateImageContentSources(); err != nil {
+		allErrs = append(allErrs, err...)
+	}
+	if err := i.validateProxy(); err != nil {
 		allErrs = append(allErrs, err...)
 	}
 
@@ -342,4 +347,56 @@ func validateNamedRepository(r string) error {
 		return errors.New("must be repository--not reference")
 	}
 	return nil
+}
+
+func (i *ImageBasedInstallationConfig) validateProxy() field.ErrorList {
+	allErrs := field.ErrorList{}
+
+	fldPath := field.NewPath("proxy")
+
+	// empty Proxy is fine
+	if i.Config.Proxy == nil {
+		return nil
+	}
+
+	if i.Config.Proxy.HTTPProxy == "" && i.Config.Proxy.HTTPSProxy == "" {
+		allErrs = append(allErrs, field.Required(fldPath, "must include httpProxy or httpsProxy"))
+	}
+
+	if i.Config.Proxy.HTTPProxy != "" {
+		allErrs = append(allErrs, validateURI(i.Config.Proxy.HTTPProxy, fldPath.Child("httpProxy"), []string{"http"})...)
+	}
+	if i.Config.Proxy.HTTPSProxy != "" {
+		allErrs = append(allErrs, validateURI(i.Config.Proxy.HTTPSProxy, fldPath.Child("httpsProxy"), []string{"http", "https"})...)
+	}
+	if i.Config.Proxy.NoProxy != "" && i.Config.Proxy.NoProxy != "*" {
+		if strings.Contains(i.Config.Proxy.NoProxy, " ") {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("noProxy"), i.Config.Proxy.NoProxy, "noProxy must not have spaces"))
+		}
+		for idx, v := range strings.Split(i.Config.Proxy.NoProxy, ",") {
+			v = strings.TrimSpace(v)
+			errDomain := validate.NoProxyDomainName(v)
+			_, _, errCIDR := net.ParseCIDR(v)
+			ip := net.ParseIP(v)
+			if errDomain != nil && errCIDR != nil && ip == nil {
+				allErrs = append(allErrs, field.Invalid(fldPath.Child("noProxy"), i.Config.Proxy.NoProxy, fmt.Sprintf(
+					"each element of noProxy must be a IP, CIDR or domain without wildcard characters, which is violated by element %d %q", idx, v)))
+			}
+		}
+	}
+
+	return allErrs
+}
+
+func validateURI(uri string, fldPath *field.Path, schemes []string) field.ErrorList {
+	parsed, err := url.ParseRequestURI(uri)
+	if err != nil {
+		return field.ErrorList{field.Invalid(fldPath, uri, err.Error())}
+	}
+	for _, scheme := range schemes {
+		if scheme == parsed.Scheme {
+			return nil
+		}
+	}
+	return field.ErrorList{field.NotSupported(fldPath, parsed.Scheme, schemes)}
 }
