@@ -3,9 +3,11 @@ package image
 import (
 	"context"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 
+	dockerref "github.com/containers/image/v5/docker/reference"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/util/validation/field"
@@ -155,6 +157,12 @@ func (i *ImageBasedInstallationConfig) validate() field.ErrorList {
 	if err := i.validateNetworkConfig(); err != nil {
 		allErrs = append(allErrs, err...)
 	}
+	if err := i.validateImageDigestSources(); err != nil {
+		allErrs = append(allErrs, err...)
+	}
+	if err := i.validateImageContentSources(); err != nil {
+		allErrs = append(allErrs, err...)
+	}
 
 	return allErrs
 }
@@ -264,4 +272,74 @@ func (i *ImageBasedInstallationConfig) validateNetworkConfig() field.ErrorList {
 	}
 
 	return allErrs
+}
+
+func (i *ImageBasedInstallationConfig) validateImageContentSources() field.ErrorList {
+	allErrs := field.ErrorList{}
+
+	fldPath := field.NewPath("imageContentSources")
+
+	for gidx, group := range i.Config.DeprecatedImageContentSources {
+		groupf := fldPath.Index(gidx)
+		if err := validateNamedRepository(group.Source); err != nil {
+			allErrs = append(allErrs, field.Invalid(groupf.Child("source"), group.Source, err.Error()))
+		}
+
+		for midx, mirror := range group.Mirrors {
+			if err := validateNamedRepository(mirror); err != nil {
+				allErrs = append(allErrs, field.Invalid(groupf.Child("mirrors").Index(midx), mirror, err.Error()))
+				continue
+			}
+		}
+	}
+	return allErrs
+}
+
+func (i *ImageBasedInstallationConfig) validateImageDigestSources() field.ErrorList {
+	allErrs := field.ErrorList{}
+
+	fldPath := field.NewPath("imageDigestSources")
+
+	for gidx, group := range i.Config.ImageDigestSources {
+		groupf := fldPath.Index(gidx)
+		if err := validateNamedRepository(group.Source); err != nil {
+			allErrs = append(allErrs, field.Invalid(groupf.Child("source"), group.Source, err.Error()))
+		}
+
+		for midx, mirror := range group.Mirrors {
+			if err := validateNamedRepository(mirror); err != nil {
+				allErrs = append(allErrs, field.Invalid(groupf.Child("mirrors").Index(midx), mirror, err.Error()))
+				continue
+			}
+		}
+	}
+	return allErrs
+}
+
+func validateNamedRepository(r string) error {
+	ref, err := dockerref.ParseNamed(r)
+	if err != nil {
+		// If a mirror name is provided without the named reference,
+		// then the name is not considered canonical and will cause
+		// an error. e.g. registry.lab.redhat.com:5000 will result
+		// in an error. Instead we will check whether the input is
+		// a valid hostname as a workaround.
+		if errors.Is(err, dockerref.ErrNameNotCanonical) {
+			// If the hostname string contains a port, lets attempt
+			// to split them
+			host, _, err := net.SplitHostPort(r)
+			if err != nil {
+				host = r
+			}
+			if err = validate.Host(host); err != nil {
+				return errors.Wrap(err, "the repository provided is invalid")
+			}
+			return nil
+		}
+		return errors.Wrap(err, "failed to parse")
+	}
+	if !dockerref.IsNameOnly(ref) {
+		return errors.New("must be repository--not reference")
+	}
+	return nil
 }

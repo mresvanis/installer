@@ -217,6 +217,44 @@ networkConfig:
 			expectedFound: false,
 			expectedError: "invalid Image-based Installation ISO Config: networkConfig: Invalid value: invalid: config\n: failed to execute 'nmstatectl gc', error: InvalidArgument: Invalid YAML string: unknown field `invalid`, expected one of `hostname`, `dns-resolver`, `route-rules`, `routes`, `interfaces`, `ovs-db`, `ovn`",
 		},
+		{
+			name: "invalid-imageContentSources",
+			data: `
+apiVersion: v1beta1
+metadata:
+  name: imagebased-installation-config
+pullSecret: "{\"auths\":{\"example.com\":{\"auth\":\"c3VwZXItc2VjcmV0Cg==\"}}}"
+seedVersion: 4.16.0
+seedImage: quay.io/openshift-kni/seed-image:4.16.0
+installationDisk: /dev/vda
+imageContentSources:
+- source: quay.io
+  mirrors:
+  - Registry.lab.redhat.com:5000
+`,
+
+			expectedFound: false,
+			expectedError: "invalid Image-based Installation ISO Config: imageContentSources[0].mirrors[0]: Invalid value: \"Registry.lab.redhat.com:5000\": failed to parse: invalid reference format: repository name must be lowercase",
+		},
+		{
+			name: "invalid-imageDigestSources",
+			data: `
+apiVersion: v1beta1
+metadata:
+  name: imagebased-installation-config
+pullSecret: "{\"auths\":{\"example.com\":{\"auth\":\"c3VwZXItc2VjcmV0Cg==\"}}}"
+seedVersion: 4.16.0
+seedImage: quay.io/openshift-kni/seed-image:4.16.0
+installationDisk: /dev/vda
+imageDigestSources:
+- source: quay.io
+  mirrors:
+  - Registry.lab.redhat.com:5000
+`,
+
+			expectedFound: false,
+			expectedError: "invalid Image-based Installation ISO Config: imageDigestSources[0].mirrors[0]: Invalid value: \"Registry.lab.redhat.com:5000\": failed to parse: invalid reference format: repository name must be lowercase",
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
