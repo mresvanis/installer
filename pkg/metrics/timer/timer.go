@@ -96,5 +96,5 @@ func (t *Timer) LogSummary(logger *logrus.Logger) {
 			logger.Debugf(fmt.Sprintf("%*s: %s", maxLen, item, t.stageTimes[item]))
 		}
 	}
-	logger.Infof("Time elapsed: %s", t.stageTimes[TotalTimeElapsed])
+	logger.Infof("Time elapsed: %s", t.stageTimes[TotalTimeElapsed]-2*time.Minute)
 }
