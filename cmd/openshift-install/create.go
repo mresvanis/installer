@@ -821,12 +821,16 @@ func checkIfAgentCommand(assetStore asset.Store) {
 
 func waitForAllClusterOperators(clusterOperatorLister configlisters.ClusterOperatorLister) func(ctx context.Context) (bool, error) {
 	previouslyStableOperators := sets.Set[string]{}
+	var stabilityStarted *time.Time
 
 	return func(ctx context.Context) (bool, error) {
 		stableOperators, unstableOperators, err := currentOperatorStability(clusterOperatorLister)
 		if err != nil {
 			return false, err
 		}
+
+		now := time.Now()
+
 		if newlyStableOperators := stableOperators.Difference(previouslyStableOperators); len(newlyStableOperators) > 0 {
 			for _, name := range sets.List(newlyStableOperators) {
 				logrus.Debugf("Cluster Operator %s is stable", name)
@@ -839,7 +843,20 @@ func waitForAllClusterOperators(clusterOperatorLister configlisters.ClusterOpera
 		}
 		previouslyStableOperators = stableOperators
 
-		if len(unstableOperators) == 0 {
+		if len(unstableOperators) > 0 {
+			stabilityStarted = nil
+			return false, nil
+		}
+
+		if stabilityStarted == nil {
+			stabilityStarted = &now
+			logrus.Debugf("All clusteroperators became stable at %v\n", stabilityStarted.Format(time.RFC3339))
+		} else {
+			logrus.Debugf("All clusteroperators are still stable after %v\n", now.Sub(*stabilityStarted).Round(time.Second))
+		}
+
+		timeStable := now.Sub(*stabilityStarted)
+		if timeStable > 2*time.Minute {
 			return true, nil
 		}
 
