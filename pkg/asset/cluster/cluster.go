@@ -17,6 +17,7 @@ import (
 	"github.com/openshift/installer/pkg/asset/cluster/tfvars"
 	"github.com/openshift/installer/pkg/asset/ignition/bootstrap"
 	"github.com/openshift/installer/pkg/asset/ignition/machine"
+	"github.com/openshift/installer/pkg/asset/imagebased/configimage"
 	"github.com/openshift/installer/pkg/asset/installconfig"
 	"github.com/openshift/installer/pkg/asset/kubeconfig"
 	"github.com/openshift/installer/pkg/asset/machines"
@@ -54,7 +55,7 @@ func (c *Cluster) Name() string {
 // the cluster.
 func (c *Cluster) Dependencies() []asset.Asset {
 	return []asset.Asset{
-		&installconfig.ClusterID{},
+		// &installconfig.ClusterID{},
 		&installconfig.InstallConfig{},
 		// PlatformCredsCheck, PlatformPermsCheck, PlatformProvisionCheck, and VCenterContexts.
 		// perform validations & check perms required to provision infrastructure.
@@ -69,13 +70,14 @@ func (c *Cluster) Dependencies() []asset.Asset {
 		&password.KubeadminPassword{},
 		&manifests.Manifests{},
 		&capimanifests.Cluster{},
-		&kubeconfig.AdminClient{},
+		&kubeconfig.ImageBasedAdminClient{},
 		&bootstrap.Bootstrap{},
 		&machine.Master{},
 		&machines.Worker{},
 		&machines.ClusterAPI{},
 		new(rhcos.Image),
 		&manifests.Manifests{},
+		&configimage.ClusterConfiguration{},
 	}
 }
 
@@ -85,11 +87,11 @@ func (c *Cluster) Generate(ctx context.Context, parents asset.Parents) (err erro
 		logrus.Fatalf("InstallDir has not been set for the %q asset", c.Name())
 	}
 
-	clusterID := &installconfig.ClusterID{}
 	installConfig := &installconfig.InstallConfig{}
 	rhcosImage := new(rhcos.Image)
 	terraformVariables := &tfvars.TerraformVariables{}
-	parents.Get(clusterID, installConfig, terraformVariables, rhcosImage)
+	clusterConfiguration := &configimage.ClusterConfiguration{}
+	parents.Get(installConfig, terraformVariables, rhcosImage, clusterConfiguration)
 
 	if fs := installConfig.Config.FeatureSet; strings.HasSuffix(string(fs), "NoUpgrade") {
 		logrus.Warnf("FeatureSet %q is enabled. This FeatureSet does not allow upgrades and may affect the supportability of the cluster.", fs)
@@ -114,11 +116,11 @@ func (c *Cluster) Generate(ctx context.Context, parents asset.Parents) (err erro
 	logrus.Infof("Creating infrastructure resources...")
 	switch platform {
 	case typesaws.Name:
-		if err := aws.PreTerraform(ctx, clusterID.InfraID, installConfig); err != nil {
+		if err := aws.PreTerraform(ctx, clusterConfiguration.Config.InfraID, installConfig); err != nil {
 			return err
 		}
 	case typesazure.Name, typesazure.StackTerraformName:
-		if err := azure.PreTerraform(ctx, clusterID.InfraID, installConfig); err != nil {
+		if err := azure.PreTerraform(ctx, clusterConfiguration.Config.InfraID, installConfig); err != nil {
 			return err
 		}
 	case typesopenstack.Name:
@@ -129,7 +131,7 @@ func (c *Cluster) Generate(ctx context.Context, parents asset.Parents) (err erro
 				break
 			}
 		}
-		if err := openstack.PreTerraform(ctx, tfvarsFile, installConfig, clusterID, rhcosImage); err != nil {
+		if err := openstack.PreTerraform(ctx, tfvarsFile, installConfig, clusterConfiguration.ClusterID, rhcosImage); err != nil {
 			return err
 		}
 	}

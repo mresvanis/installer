@@ -11,9 +11,9 @@ import (
 	k8sjson "sigs.k8s.io/json"
 
 	"github.com/openshift/installer/pkg/asset"
+	"github.com/openshift/installer/pkg/asset/installconfig"
 	"github.com/openshift/installer/pkg/asset/password"
 	"github.com/openshift/installer/pkg/asset/tls"
-	"github.com/openshift/installer/pkg/types"
 	"github.com/openshift/installer/pkg/types/imagebased"
 )
 
@@ -38,6 +38,8 @@ var (
 type ClusterConfiguration struct {
 	File   *asset.File
 	Config *imagebased.SeedReconfiguration
+
+	ClusterID *installconfig.ClusterID
 }
 
 // Name returns a human friendly name for the asset.
@@ -49,23 +51,23 @@ func (*ClusterConfiguration) Name() string {
 // the asset.
 func (*ClusterConfiguration) Dependencies() []asset.Asset {
 	return []asset.Asset{
-		&InstallConfig{},
-		&ClusterID{},
+		&installconfig.InstallConfig{},
+		&installconfig.ClusterID{},
 		&tls.KubeAPIServerLBSignerCertKey{},
 		&tls.KubeAPIServerLocalhostSignerCertKey{},
 		&tls.KubeAPIServerServiceNetworkSignerCertKey{},
 		&tls.AdminKubeConfigSignerCertKey{},
 		&IngressOperatorSignerCertKey{},
 		&password.KubeadminPassword{},
-		&ImageBasedConfig{},
+		// &ImageBasedConfig{},
 	}
 }
 
 // Generate generates the Image-based Installer ClusterConfiguration manifest.
 func (cc *ClusterConfiguration) Generate(_ context.Context, dependencies asset.Parents) error {
-	installConfig := &InstallConfig{}
-	clusterID := &ClusterID{}
-	imageBasedConfig := &ImageBasedConfig{}
+	installConfig := &installconfig.InstallConfig{}
+	clusterID := &installconfig.ClusterID{}
+	// imageBasedConfig := &ImageBasedConfig{}
 	serverLBSignerCertKey := &tls.KubeAPIServerLBSignerCertKey{}
 	serverLocalhostSignerCertKey := &tls.KubeAPIServerLocalhostSignerCertKey{}
 	serverServiceNetworkSignerCertKey := &tls.KubeAPIServerServiceNetworkSignerCertKey{}
@@ -75,7 +77,7 @@ func (cc *ClusterConfiguration) Generate(_ context.Context, dependencies asset.P
 	dependencies.Get(
 		installConfig,
 		clusterID,
-		imageBasedConfig,
+		// imageBasedConfig,
 		serverLBSignerCertKey,
 		serverLocalhostSignerCertKey,
 		serverServiceNetworkSignerCertKey,
@@ -87,40 +89,41 @@ func (cc *ClusterConfiguration) Generate(_ context.Context, dependencies asset.P
 	dependencies.Get(pwd)
 	pwdHash := string(pwd.PasswordHash)
 
-	if installConfig.Config == nil || imageBasedConfig.Config == nil {
-		return cc.finish()
-	}
+	// if installConfig.Config == nil || imageBasedConfig.Config == nil {
+	// 	return cc.finish()
+	// }
 
+	cc.ClusterID = clusterID
 	cc.Config = &imagebased.SeedReconfiguration{
-		APIVersion:            imagebased.SeedReconfigurationVersion,
-		BaseDomain:            installConfig.Config.BaseDomain,
-		ClusterID:             clusterID.UUID,
-		ClusterName:           installConfig.ClusterName(),
-		Hostname:              imageBasedConfig.Config.Hostname,
+		// APIVersion:            imagebased.SeedReconfigurationVersion,
+		BaseDomain:  installConfig.Config.BaseDomain,
+		ClusterID:   clusterID.UUID,
+		ClusterName: installConfig.Config.ObjectMeta.Name,
+		// Hostname:              imageBasedConfig.Config.Hostname,
 		InfraID:               clusterID.InfraID,
 		KubeadminPasswordHash: pwdHash,
-		Proxy:                 installConfig.Config.Proxy,
-		PullSecret:            installConfig.Config.PullSecret,
-		RawNMStateConfig:      imageBasedConfig.Config.NetworkConfig.String(),
-		ReleaseRegistry:       imageBasedConfig.Config.ReleaseRegistry,
-		SSHKey:                installConfig.Config.SSHKey,
+		// Proxy:                 installConfig.Config.Proxy,
+		// PullSecret:            installConfig.Config.PullSecret,
+		// RawNMStateConfig:      imageBasedConfig.Config.NetworkConfig.String(),
+		// ReleaseRegistry:       imageBasedConfig.Config.ReleaseRegistry,
+		// SSHKey:                installConfig.Config.SSHKey,
 	}
 
-	if len(imageBasedConfig.Config.AdditionalNTPSources) > 0 {
-		cc.Config.ChronyConfig = chronyConfWithAdditionalNTPSources(imageBasedConfig.Config.AdditionalNTPSources)
-	}
+	// if len(imageBasedConfig.Config.AdditionalNTPSources) > 0 {
+	// 	cc.Config.ChronyConfig = chronyConfWithAdditionalNTPSources(imageBasedConfig.Config.AdditionalNTPSources)
+	// }
 
-	if installConfig.Config.AdditionalTrustBundle != "" {
-		cc.Config.AdditionalTrustBundle = imagebased.AdditionalTrustBundle{
-			UserCaBundle: installConfig.Config.AdditionalTrustBundle,
-		}
+	// if installConfig.Config.AdditionalTrustBundle != "" {
+	// 	cc.Config.AdditionalTrustBundle = imagebased.AdditionalTrustBundle{
+	// 		UserCaBundle: installConfig.Config.AdditionalTrustBundle,
+	// 	}
 
-		if installConfig.Config.AdditionalTrustBundlePolicy == types.PolicyAlways ||
-			(installConfig.Config.AdditionalTrustBundlePolicy == types.PolicyProxyOnly && installConfig.Config.Proxy != nil) {
-			cc.Config.AdditionalTrustBundle.ProxyConfigmapName = userCABundleConfigMapName
-			cc.Config.AdditionalTrustBundle.ProxyConfigmapBundle = installConfig.Config.AdditionalTrustBundle
-		}
-	}
+	// 	if installConfig.Config.AdditionalTrustBundlePolicy == types.PolicyAlways ||
+	// 		(installConfig.Config.AdditionalTrustBundlePolicy == types.PolicyProxyOnly && installConfig.Config.Proxy != nil) {
+	// 		cc.Config.AdditionalTrustBundle.ProxyConfigmapName = userCABundleConfigMapName
+	// 		cc.Config.AdditionalTrustBundle.ProxyConfigmapBundle = installConfig.Config.AdditionalTrustBundle
+	// 	}
+	// }
 
 	cc.Config.KubeconfigCryptoRetention = imagebased.KubeConfigCryptoRetention{
 		KubeAPICrypto: imagebased.KubeAPICrypto{
@@ -139,7 +142,7 @@ func (cc *ClusterConfiguration) Generate(_ context.Context, dependencies asset.P
 	}
 
 	// validation for the length of the MachineNetwork is performed in the InstallConfig
-	cc.Config.MachineNetwork = installConfig.Config.Networking.MachineNetwork[0].CIDR.String()
+	// cc.Config.MachineNetwork = installConfig.Config.Networking.MachineNetwork[0].CIDR.String()
 
 	clusterConfigurationData, err := json.Marshal(cc.Config)
 	if err != nil {

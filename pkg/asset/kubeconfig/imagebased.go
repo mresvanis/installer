@@ -5,6 +5,7 @@ import (
 
 	"github.com/openshift/installer/pkg/asset"
 	"github.com/openshift/installer/pkg/asset/imagebased/configimage"
+	"github.com/openshift/installer/pkg/asset/installconfig"
 	"github.com/openshift/installer/pkg/asset/tls"
 )
 
@@ -18,7 +19,7 @@ func (k *ImageBasedAdminClient) Dependencies() []asset.Asset {
 	return []asset.Asset{
 		&tls.AdminKubeConfigClientCertKey{},
 		&configimage.ImageBasedKubeAPIServerCompleteCABundle{},
-		&configimage.InstallConfig{},
+		&installconfig.InstallConfig{},
 	}
 }
 
@@ -26,7 +27,7 @@ func (k *ImageBasedAdminClient) Dependencies() []asset.Asset {
 func (k *ImageBasedAdminClient) Generate(_ context.Context, parents asset.Parents) error {
 	ca := &configimage.ImageBasedKubeAPIServerCompleteCABundle{}
 	clientCertKey := &tls.AdminKubeConfigClientCertKey{}
-	installConfig := &configimage.InstallConfig{}
+	installConfig := &installconfig.InstallConfig{}
 	parents.Get(ca, clientCertKey, installConfig)
 
 	return k.kubeconfig.generate(
