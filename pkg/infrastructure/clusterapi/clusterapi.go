@@ -2,10 +2,12 @@ package clusterapi
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -25,6 +27,7 @@ import (
 	"github.com/openshift/installer/pkg/asset/cluster/tfvars"
 	"github.com/openshift/installer/pkg/asset/ignition/bootstrap"
 	"github.com/openshift/installer/pkg/asset/ignition/machine"
+	"github.com/openshift/installer/pkg/asset/imagebased/configimage"
 	"github.com/openshift/installer/pkg/asset/installconfig"
 	"github.com/openshift/installer/pkg/asset/kubeconfig"
 	"github.com/openshift/installer/pkg/asset/machines"
@@ -75,25 +78,27 @@ func (i *InfraProvider) Provision(ctx context.Context, dir string, parents asset
 	workersAsset := &machines.Worker{}
 	capiManifestsAsset := &capimanifests.Cluster{}
 	capiMachinesAsset := &machines.ClusterAPI{}
-	clusterKubeconfigAsset := &kubeconfig.AdminClient{}
-	clusterID := &installconfig.ClusterID{}
+	clusterKubeconfigAsset := &kubeconfig.ImageBasedAdminClient{}
+	// clusterID := &installconfig.ClusterID{}
 	installConfig := &installconfig.InstallConfig{}
 	rhcosImage := new(rhcos.Image)
 	bootstrapIgnAsset := &bootstrap.Bootstrap{}
 	masterIgnAsset := &machine.Master{}
 	tfvarsAsset := &tfvars.TerraformVariables{}
+	clusterConfiguration := &configimage.ClusterConfiguration{}
 	parents.Get(
 		manifestsAsset,
 		workersAsset,
 		capiManifestsAsset,
 		clusterKubeconfigAsset,
-		clusterID,
+		// clusterID,
 		installConfig,
 		rhcosImage,
 		bootstrapIgnAsset,
 		masterIgnAsset,
 		capiMachinesAsset,
 		tfvarsAsset,
+		clusterConfiguration,
 	)
 
 	var clusterIDs []string
@@ -119,7 +124,7 @@ func (i *InfraProvider) Provision(ctx context.Context, dir string, parents asset
 
 	if p, ok := i.impl.(PreProvider); ok {
 		preProvisionInput := PreProvisionInput{
-			InfraID:          clusterID.InfraID,
+			InfraID:          clusterConfiguration.ClusterID.InfraID,
 			InstallConfig:    installConfig,
 			RhcosImage:       rhcosImage,
 			ManifestsAsset:   manifestsAsset,
@@ -259,7 +264,7 @@ func (i *InfraProvider) Provision(ctx context.Context, dir string, parents asset
 		infraReadyInput := InfraReadyInput{
 			Client:        cl,
 			InstallConfig: installConfig,
-			InfraID:       clusterID.InfraID,
+			InfraID:       clusterConfiguration.ClusterID.InfraID,
 		}
 
 		timer.StartTimer(infrastructureReadyStage)
@@ -271,8 +276,18 @@ func (i *InfraProvider) Provision(ctx context.Context, dir string, parents asset
 		logrus.Debugf("No infrastructure ready requirements for the %s provider", i.impl.Name())
 	}
 
-	masterIgnData := masterIgnAsset.Files()[0].Data
-	bootstrapIgnData, err := injectInstallInfo(bootstrapIgnAsset.Files()[0].Data)
+	// AWS IBI PoC: create only the master node
+	// AWS IBI PoC: with the cluster details in UserData (instead of Ignition)
+
+	infraID := strings.Split(clusterConfiguration.Config.InfraID, "-")
+	clusterConfiguration.Config.InfraID = infraID[len(infraID)-1]
+	masterIgnData, err := json.Marshal(clusterConfiguration.Config)
+	if err != nil {
+		return fileList, err
+	}
+
+	// masterIgnData := masterIgnAsset.Files()[0].Data
+	// bootstrapIgnData, err := injectInstallInfo(bootstrapIgnAsset.Files()[0].Data)
 	if err != nil {
 		return fileList, fmt.Errorf("unable to inject installation info: %w", err)
 	}
@@ -280,27 +295,28 @@ func (i *InfraProvider) Provision(ctx context.Context, dir string, parents asset
 
 	// The cloud-platform may need to override the default
 	// bootstrap ignition behavior.
-	if p, ok := i.impl.(IgnitionProvider); ok {
-		ignInput := IgnitionInput{
-			Client:           cl,
-			BootstrapIgnData: bootstrapIgnData,
-			MasterIgnData:    masterIgnData,
-			InfraID:          clusterID.InfraID,
-			InstallConfig:    installConfig,
-			TFVarsAsset:      tfvarsAsset,
-		}
+	// if p, ok := i.impl.(IgnitionProvider); ok {
+	// 	ignInput := IgnitionInput{
+	// 		Client:           cl,
+	// 		BootstrapIgnData: bootstrapIgnData,
+	// 		MasterIgnData:    masterIgnData,
+	// 		InfraID:          clusterID.InfraID,
+	// 		InstallConfig:    installConfig,
+	// 		TFVarsAsset:      tfvarsAsset,
+	// 	}
 
-		timer.StartTimer(ignitionStage)
-		if ignitionSecrets, err = p.Ignition(ctx, ignInput); err != nil {
-			return fileList, fmt.Errorf("failed preparing ignition data: %w", err)
-		}
-		timer.StopTimer(ignitionStage)
-	} else {
-		logrus.Debugf("Using default ignition for the %s provider", i.impl.Name())
-		bootstrapIgnSecret := IgnitionSecret(bootstrapIgnData, clusterID.InfraID, "bootstrap")
-		masterIgnSecret := IgnitionSecret(masterIgnData, clusterID.InfraID, "master")
-		ignitionSecrets = append(ignitionSecrets, bootstrapIgnSecret, masterIgnSecret)
-	}
+	// 	timer.StartTimer(ignitionStage)
+	// 	if ignitionSecrets, err = p.Ignition(ctx, ignInput); err != nil {
+	// 		return fileList, fmt.Errorf("failed preparing ignition data: %w", err)
+	// 	}
+	// 	timer.StopTimer(ignitionStage)
+	// } else {
+	logrus.Debugf("Using default ignition for the %s provider", i.impl.Name())
+	// bootstrapIgnSecret := IgnitionSecret(bootstrapIgnData, clusterID.InfraID, "bootstrap")
+	masterIgnSecret := IgnitionSecret(masterIgnData, clusterConfiguration.ClusterID.InfraID, "master")
+	ignitionSecrets = append(ignitionSecrets, masterIgnSecret)
+	// ignitionSecrets = append(ignitionSecrets, bootstrapIgnSecret, masterIgnSecret)
+	// }
 
 	for _, secret := range ignitionSecrets {
 		machineManifests = append(machineManifests, secret)
@@ -349,7 +365,7 @@ func (i *InfraProvider) Provision(ctx context.Context, dir string, parents asset
 						}
 						return false, err
 					}
-					reqPubIP := reqBootstrapPubIP && machineName == capiutils.GenerateBoostrapMachineName(clusterID.InfraID)
+					reqPubIP := reqBootstrapPubIP && machineName == capiutils.GenerateBoostrapMachineName(clusterConfiguration.ClusterID.InfraID)
 					ready, err := checkMachineReady(machine, reqPubIP)
 					if err != nil {
 						return false, fmt.Errorf("failed waiting for machines: %w", err)
@@ -375,7 +391,7 @@ func (i *InfraProvider) Provision(ctx context.Context, dir string, parents asset
 		postMachineInput := PostProvisionInput{
 			Client:        cl,
 			InstallConfig: installConfig,
-			InfraID:       clusterID.InfraID,
+			InfraID:       clusterConfiguration.ClusterID.InfraID,
 		}
 
 		timer.StartTimer(postProvisionStage)
